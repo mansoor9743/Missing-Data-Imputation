@@ -1,0 +1,320 @@
+---
+title: "Missing Data Imputation through Chained equations"
+author: 'Mansoor'
+date: "6/29/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Abstract:
+
+This report analyses various imputation methods for dealing with missingness in Diabetes dataset. Exploratory data analysis is performed on the datasets in finding the type and extent of missingness. Various techniques for dealing with missingness like complete case analysis, mean imputation and multiple imputation with chained equations (MICE) are applied over the dataset. The three methods of imputation are then compared by fitting linear models on the imputed datasets and analysing the resulting standard errors and estimates.
+
+## Dataset: 
+The Data has been collected from 403 subjects of 1046 subjects interviewed in a study of African Americans in Central Virginia. The 403 subjects were the ones who were actually screened for diabetes. The data consists of 16 variables listed in table. Stab.glu is not considered in the imputation models as it directly denotes onset of diabetes.
+
+```{r, message=FALSE}
+library(VIM)
+library(corrplot)
+library(mice)
+library(xtable)
+set.seed(1234)
+DM = read.csv("diabetes_C.csv") 
+# dataset description with column names in report
+
+DM = DM[,-c(2)] 
+# removing stabalized gluscose from dataset
+#DM[,14] = as.numeric(c(DM[,4]>7))
+#DM = DM[,-4]
+names(DM)
+head(DM)
+#DM[,c(5,8)] = as.factor(DM[,c(5,8)])
+
+```
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+#head(DM)
+aggr(DM, numbers=TRUE, main= "Extent of missing values in each variable of Diabetic dataset")
+matrixplot(DM) # no relation found
+#names(DM)
+```
+
+```{r}
+C=cor(DM[,-c(6,9)],use = "pairwise")
+corrplot(C,type = "upper", order = "hclust",
+         title = "Correlation Plot of Diabetes Dataset",method = "number")
+```
+
+```{r}
+# complete case analysis
+DM1 = na.omit(DM)
+length(DM1[,1]) # 367 rows
+length(DM[,1]) # 403 rows
+names(DM1)
+y=DM1[,4]
+X=DM1[,-4]
+```
+
+```{r, echo = T, results = 'hide'}
+Model1=lm(y~.,data=X)
+summary(Model1)
+Model2=step(Model1)
+```
+
+```{r}
+summary(Model1)
+(summary(Model2))
+
+```
+
+```{r}
+complete_case<-summary(Model2)
+complete_case
+round(complete_case$coefficients[,1],3) 
+# coeefecients or estimates
+round(complete_case$coefficients[,2],3)
+# standard errors
+```
+
+```{r, echo = T, results = 'hide'}
+#simple model, imputation with mean
+M.imp = mice(DM,method = "mean",m=20)
+names(M.imp)
+M.imp$imp
+```
+
+```{r}
+y=DM[,4]
+X=DM[,-4]
+Model3=with(M.imp,lm(y~ratio+age+waist,data=X))
+```
+```{r}
+#Model3=step(Model3)
+summary(Model3)
+pool(Model3)
+(summary(pool(Model3)))
+mean_coef<-round(summary(pool(Model3)),2)
+mean_coef[,1] # estimates
+mean_coef[,2] # standard errors
+```
+```{r}
+xyplot(M.imp,glyhb~chol+hdl+ratio+age+height
+       +weight+frame+bp.1s+bp.1d+waist+hip,
+       main="Single Imputation")
+```
+
+```{r, echo = T, results = 'hide'}
+# chained model
+
+C.imp = mice(DM,m = 20)
+com = complete(C.imp,"long")
+com = complete(C.imp)
+model = with(data = C.imp,exp = 
+               lm(glyhb~chol+hdl+ratio+age+height+
+                    weight+frame+bp.1s+bp.1d+waist+hip) )
+
+```
+
+
+```{r}
+summary(pool(model))
+```
+```{r, echo = T, results = 'hide'}
+model1 = with(data = C.imp,exp = 
+                lm(glyhb~chol+hdl+ratio+age+
+                     height+frame+bp.1s+bp.1d+waist+hip))
+summary(pool(model1))
+pool.compare(model,model1,method = "wald")
+
+model2 = with(data = C.imp,exp =
+                lm(glyhb~chol+hdl+ratio+age+
+                     height+bp.1s+bp.1d+waist+hip))
+summary(pool(model2))
+pool.compare(model1,model2,method = "wald")
+
+model3 = with(data = C.imp,exp = 
+                lm(glyhb~hdl+ratio+age+
+                     height+bp.1s+bp.1d+waist+hip) )
+summary(pool(model3))
+pool.compare(model2,model3,method = "wald")
+
+model4 = with(data = C.imp,exp = lm(glyhb~
+                                      hdl+ratio+
+                                      age+height+bp.1s+
+                                      bp.1d+waist) )
+summary(pool(model4))
+pool.compare(model3,model4,method = "wald")
+
+model5 = with(data = C.imp,exp = lm(glyhb~hdl
+                                    +ratio+age+
+                                      height+bp.1d+waist) )
+summary(pool(model5))
+pool.compare(model4,model5,method = "wald")
+
+model6 = with(data = C.imp,exp = lm(glyhb~hdl+
+                                      ratio+age+
+                                      height+waist) )
+summary(pool(model6))
+pool.compare(model5,model6,method = "wald")
+
+model7 = with(data = C.imp,exp = lm(glyhb~hdl+
+                                      ratio+age+
+                                      waist) )
+summary(pool(model7))
+pool.compare(model6,model7,method = "wald")
+
+model8 = with(data = C.imp,exp = lm(glyhb~
+                                      ratio+age+
+                                      waist) )
+summary(pool(model8))
+pool.compare(model7,model8,method = "wald")
+
+model8 = with(data = C.imp,exp = lm(glyhb~
+                                      ratio+age+
+                                      waist) )
+summary(pool(model8))
+pool.compare(model7,model8,method = "wald")
+model8$analyses
+#names()
+#?pool.compare
+#x11()
+multiple_coef<-round(summary(pool(model8)),2)
+multiple_coef[,1] # estimates
+multiple_coef[,2] # standard error
+pool.compare(model3,model8,method = "wald")
+```
+```{r}
+# getting p value not significant
+#so we are going for the simple model8
+par(mfrow=c(2,1))
+plot(C.imp, main='Convergence plot
+     of imputed diabetes data') # converegence plot
+#par(mfrow=c(7,2))
+```
+```{r}
+attach(model8)
+par(mfrow=c(4,4))
+densityplot(C.imp, ~glyhb,main = 
+              "Density plot of Imputations for glyhb")
+densityplot(C.imp, ~height,main =
+              "Density plot of Imputations for height")
+densityplot(C.imp, ~frame,main =
+              "Density plot of Imputations for frame")
+densityplot(C.imp, ~bp.1d,main = 
+              "Density plot of Imputations for bp.1d")
+#x11()
+
+```
+
+```{r}
+stripplot(C.imp, main = 
+            "Stripplot of all 
+          imputations in diabetes dataset") # every single imputation
+xyplot(C.imp,glyhb~chol+hdl+ratio
+       +age+height+weight+frame+bp.1s+bp.1d+waist+hip,
+       main="multiple chained imputations")
+bwplot(C.imp,main="Box and whisker plot of 
+       observed and imputed data in diabetes dataset")
+```
+
+```{r,echo = T, results = 'hide'}
+# SIMPLE VS CHAIN IMPUTATION
+#pool.compare(Model3,model8,method = "wald")
+
+NI=20
+
+beta= lapply(model8$analyses,coefficients)
+beta_col = matrix(0,ncol = 4,nrow = NI)
+
+for (i in 1:NI) {beta_col[i,]=beta[[i]]}
+head(beta_col)
+beta_col
+M = apply(beta_col,2, mean)
+M
+M_<-colMeans(beta_col)
+M_
+B=var(beta_col)
+round(B,6)
+
+Cov = lapply(model8$analyses, vcov)
+Cov
+Tot = matrix(0,ncol = 4,nrow = 4)
+for (i in 1:NI ) {
+  Tot = Tot + Cov[[i]]
+}
+
+
+Tot
+w = Tot/NI
+round(w,6)
+
+T = w + B # inserted now
+T
+round(M,3)
+round(B,6)##Between imputations variability
+round(w,6) ##Within  imputation variability
+round(T,6)##Total variability
+#x11()
+round(diag(B)/diag(T),3) # Fraction of information
+#lost through missing data
+```
+
+```{r}
+barplot(round(diag(B)/diag(T),3), col = 1:4, main =
+          "Fraction of information lost- Diabetes Data", ylim = c(0,0.1))
+```
+
+```{r}
+# coeeficients and estimates
+par(las=2)
+par(mfrow=c(1,3))
+#estimates of the 3 models-complete, mean and multiple
+barplot(round(complete_case
+              $coefficients[c(1,3,4,5),1],3),
+        col = 1:4,names.arg = rownames(complete_case),
+        ylim = c(0,1)) #  estimates
+barplot(mean_coef[,1], col = 1:5,names.arg = 
+          rownames(mean_coef),ylim = c(0,1)) # estimates
+barplot(multiple_coef[,1], col = 1:5,
+        names.arg = rownames(multiple_coef),ylim = c(0,1)) # estimates
+
+```
+
+```{r}
+# standard errors of the 3 models-complete, mean and multiple
+par(mfrow=c(1,3))
+barplot(round(complete_case$coefficients
+              [c(1,3,4,5),2],3),col = 1:4,
+        names.arg = rownames(complete_case),
+        ylim = c(0,1)) # standard errors
+barplot(mean_coef[,2], col = 1:5,
+        names.arg = rownames(mean_coef),
+        ylim = c(0,1)) # standard errors
+barplot(multiple_coef[,2], col = 1:5,
+        names.arg = rownames(multiple_coef),
+        ylim = c(0,1)) # standard error
+```
+
+```{r}
+# note- none of thm show any variation- 
+#both the coefficent and the standard errors
+#x11()
+beta_col_1<- beta_col[,c(1,2)]
+#beta_col_1
+beta_col_2<- beta_col[,c(1,3)]
+#beta_col_2
+beta_col_3<- beta_col[,c(1,4)]
+#beta_col_3
+# ratio
+marginplot(cbind(DM$glyhb,DM$ratio),col=1:2,
+           xlab="log life span",ylab="log gestation time")
+for(i in 1:20){
+  abline(beta_col_1[i,],col=3) #Draw fitted line for each MI data set
+}
+```
+
+
+
+
