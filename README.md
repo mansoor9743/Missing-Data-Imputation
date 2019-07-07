@@ -7,7 +7,7 @@ Author: Mansoor
 Abstract:
 ---------
 
-This report analyses various imputation methods for dealing with missingness in Diabetes dataset. Exploratory data analysis is performed on the datasets in finding the type and extent of missingness. Various techniques for dealing with missingness like complete case analysis, mean imputation and multiple imputation with chained equations (MICE) are applied over the dataset. The three methods of imputation are then compared by fitting linear models on the imputed datasets and analysing the resulting standard errors and estimates.
+This project analyses various imputation methods for dealing with missingness in Diabetes dataset. Exploratory data analysis is performed on the datasets in finding the type and extent of missingness. Various techniques for dealing with missingness like complete case analysis, mean imputation and multiple imputation with chained equations (MICE) are applied over the dataset. The three methods of imputation are then compared by fitting linear models on the imputed datasets and analysing the resulting standard errors and estimates.
 
 Dataset:
 --------
